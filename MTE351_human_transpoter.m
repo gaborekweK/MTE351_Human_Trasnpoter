@@ -3,60 +3,63 @@ clc; clear; close all;
 %% Define Symbolic Variables
 syms M Mu Lg Ig_w Ig_u R g Ft beta theta real
 
-%% Linearized Equations (applying small angle approximations)
-% cos(theta + beta) ≈ 1 AND sin(theta + beta) ≈ (theta + beta) 
-% Equation 1: (M + (Ig_w)/R^2 + Mu)x_ddot + Mu*Lg*theta_ddot= Ft
-% Equation 2: (Mu*Lg^2 + Ig_u)theta_ddot + Mu*Lg*x_ddot - Mu*g*Lg*(theta + beta) = 0
-
-%% Express System in Standard State-Variable Form
-% Define constants using symbolic expressions
+%% Define Constants
 C1 = M + Ig_w/R^2 + Mu;
 C2 = Mu * Lg;
 C4 = Mu * Lg^2 + Ig_u;
-C6 = Mu * g * Lg;
+C6 = -1 * Mu * g * Lg * (theta + beta);
 
-%% Calculate determinant to eliminate x_ddot and theta_ddot
-% [ C1  C2 ] [x_ddot] = [ Ft]
-% [ C2  C4 ] [theta_ddot] = [ C6*(theta + beta)]
-% det_A = C1*C4 - C2^2;
-% x_ddot = (Ft*C4 + C2*C6*(theta + beta)) / det_A
-% theta_ddot = (-C2*Ft + C1*C6*(theta + beta)) / det_A
-% Let states be: x1 = x, x2 = x_dot, x3 = theta, x4 = theta_dot
-% Then: x_ddot1 = x2, x_dot2 = x_ddot, x_dot3 = x4, x_dot4 = theta_ddot
-% Compute determinant
-det_A = C1 * C4 - C2^2;
+%% Define State Variables
+syms x x_dot theta theta_dot real
+x_vec = [x; x_dot; theta; theta_dot];
 
-% Compute matrix elements
-a23 = C2 * C6 / det_A;
-a43 = C1 * C6 / det_A;
-b21 = C4 / det_A;
-b22 = C2 * C6 / det_A;
-b41 = -C2 / det_A;
-b42 = C1 * C6 / det_A;
+%% Define Input
+u = Ft;
 
-% Define State-Space Matrices (Symbolic)
-A = [
-    0   1   0   0;
-    0   0  a23  0;
-    0   0   0   1;
-    0   0  a43  0
-];
+%% Linearized Equations
+% Equation 1: (C1)*x_ddot + C2*theta_ddot = Ft
+% Equation 2: (C4)*theta_ddot + C2*x_ddot - C6 = 0
 
-B = [
-    0    0;
-    b21  b22;
-    0    0;
-    b41  b42
-];
+% Solve for x_ddot and theta_ddot
+syms x_ddot theta_ddot real
+eq1 = C1*x_ddot + C2*theta_ddot == u;
+eq2 = C4*theta_ddot + C2*x_ddot - C6 == 0;
 
+% Solve the system of equations for x_ddot and theta_ddot
+sol = solve([eq1, eq2], [x_ddot, theta_ddot]);
+
+% Extract solutions
+x_ddot_sol = sol.x_ddot;
+theta_ddot_sol = sol.theta_ddot;
+
+%% State-Space Representation
+% State vector: [x; x_dot; theta; theta_dot]
+% State derivatives: [x_dot; x_ddot; theta_dot; theta_ddot]
+
+% Define state derivatives
+% x_dot = x_dot;
+x_ddot = x_ddot_sol;
+% theta_dot = theta_dot;
+theta_ddot = theta_ddot_sol;
+
+% State derivative vector
+x_dot_vec = [x_dot; x_ddot; theta_dot; theta_ddot];
+
+% Express in standard state-variable form: dx/dt = A*x + B*u
+% Extract coefficients for A and B matrices
+A = jacobian(x_dot_vec, x_vec);
+B = jacobian(x_dot_vec, u);
+
+% Define C and D matrices for output
 C = eye(4);  % Full-state output
-D = zeros(4, 2); % No direct feedthrough
+D = zeros(4, 1); % No direct feedthrough
 
 %% Display the Standard State-Variable Model
 disp('Standard State-Variable Model:')
 disp('[x_dot] = [A][x] + [B][u]')
 disp('[y]     = [C][x] + [D][u]')
 disp(' ')
+
 % Display A, B, C, D Matrices 
 disp('State Equation in Matrix Form:')
 disp('A Matrix:')
@@ -75,4 +78,3 @@ disp(['C1 = ', char(C1)])
 disp(['C2 = ', char(C2)])
 disp(['C4 = ', char(C4)])
 disp(['C6 = ', char(C6)])
-disp(['det(A) = ', char(det_A)])
